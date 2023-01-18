@@ -117,6 +117,7 @@ interface KubernetesDrawerContentProps<T extends KubernetesDrawerable> {
   object: T;
   renderObject: (obj: T) => object;
   kind: string;
+  contentChildren?: () => React.ReactNode;
 }
 
 function replaceNullsWithUndefined(someObj: any) {
@@ -147,6 +148,7 @@ const KubernetesDrawerContent = <T extends KubernetesDrawerable>({
   object,
   renderObject,
   kind,
+  contentChildren,
 }: KubernetesDrawerContentProps<T>) => {
   const [isYaml, setIsYaml] = useState<boolean>(false);
 
@@ -223,11 +225,14 @@ const KubernetesDrawerContent = <T extends KubernetesDrawerable>({
       </div>
       <div className={classes.content}>
         {isYaml && <CodeSnippet language="yaml" text={jsYaml.dump(object)} />}
-        {!isYaml && (
-          <StructuredMetadataTable
-            metadata={renderObject(replaceNullsWithUndefined(object))}
-          />
-        )}
+        {!isYaml &&
+          (contentChildren ? (
+            contentChildren()
+          ) : (
+            <StructuredMetadataTable
+              metadata={renderObject(replaceNullsWithUndefined(object))}
+            />
+          ))}
       </div>
     </>
   );
@@ -239,6 +244,7 @@ interface KubernetesDrawerProps<T extends KubernetesDrawerable> {
   kind: string;
   expanded?: boolean;
   children?: React.ReactNode;
+  contentChildren?: () => React.ReactNode;
 }
 
 export const KubernetesDrawer = <T extends KubernetesDrawerable>({
@@ -248,6 +254,7 @@ export const KubernetesDrawer = <T extends KubernetesDrawerable>({
   buttonVariant = 'subtitle2',
   expanded = false,
   children,
+  contentChildren,
 }: KubernetesDrawerProps<T>) => {
   const [isOpen, setIsOpen] = useState(expanded);
   const classes = useDrawerStyles();
@@ -285,6 +292,7 @@ export const KubernetesDrawer = <T extends KubernetesDrawerable>({
           toggleDrawer={toggleDrawer}
           object={object}
           renderObject={renderObject}
+          contentChildren={contentChildren}
         />
       </Drawer>
     </>

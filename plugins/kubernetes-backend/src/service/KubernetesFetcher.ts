@@ -15,14 +15,15 @@
  */
 
 import {
-  Config,
+  bufferFromFileOrString,
   Cluster,
+  Config,
   CoreV1Api,
   KubeConfig,
   Metrics,
-  User,
-  bufferFromFileOrString,
   topPods,
+  User,
+  V1Pod,
 } from '@kubernetes/client-node';
 import lodash, { Dictionary } from 'lodash';
 import { Logger } from 'winston';
@@ -31,11 +32,13 @@ import {
   FetchResponseWrapper,
   KubernetesFetcher,
   ObjectFetchParams,
+  PodLog,
+  PodLogUrl,
 } from '../types/types';
 import {
   FetchResponse,
-  KubernetesFetchError,
   KubernetesErrorTypes,
+  KubernetesFetchError,
   PodStatusFetchResponse,
 } from '@backstage/plugin-kubernetes-common';
 import fetch, { RequestInit, Response } from 'node-fetch';
@@ -155,6 +158,66 @@ export class KubernetesClientBasedFetcher implements KubernetesFetcher {
     return Promise.all(fetchResults).then(fetchResultsToResponseWrapper);
   }
 
+  fetchPodLogs(
+    clusterDetails: ClusterDetails,
+    pods: V1Pod[],
+  ): Promise<PodLog[]> {
+    const podContainerMap: PodLog[] = [];
+
+    pods.forEach(x => {
+      x.spec?.containers?.forEach(y => {
+        podContainerMap.push({
+          name: x.metadata?.name ?? 'default',
+          namespace: x.metadata?.namespace ?? 'default',
+          container: y.name,
+          logs: '',
+        });
+      });
+    });
+
+    const fetchResults = podContainerMap.map(map => {
+      return this.fetchLogs(
+        clusterDetails,
+        map.namespace ?? 'default',
+        map.name ?? 'default',
+        map.container,
+      ).then(async logs => {
+        return {
+          name: map.name,
+          container: map.container,
+          namespace: map.namespace,
+          log: logs.ok ? await logs.text() : '',
+        } as unknown as PodLog;
+      });
+    });
+
+    return Promise.all(fetchResults);
+  }
+
+  getPodLogsUrl(clusterDetails: ClusterDetails, pods: V1Pod[]): PodLogUrl[] {
+    const podContainerMap: PodLogUrl[] = [];
+
+    pods.forEach(x => {
+      x.spec?.containers?.forEach(y => {
+        const [url, init] = this.getPodContianerLogEndpointWithAuth(
+          clusterDetails,
+          x.metadata?.name ?? '',
+          x.metadata?.namespace ?? 'default',
+          y.name,
+        );
+        podContainerMap.push({
+          name: x.metadata?.name ?? '',
+          namespace: x.metadata?.namespace ?? 'default',
+          container: y.name,
+          url: url.toString(),
+          requestInit: init,
+        });
+      });
+    });
+
+    return podContainerMap;
+  }
+
   private async handleUnsuccessfulResponse(
     clusterName: string,
     res: Response,
@@ -207,6 +270,51 @@ export class KubernetesClientBasedFetcher implements KubernetesFetcher {
     if (labelSelector) {
       url.search = `labelSelector=${labelSelector}`;
     }
+
+    return fetch(url, requestInit);
+  }
+
+  private getPodContianerLogEndpointWithAuth(
+    clusterDetails: ClusterDetails,
+    namespace: string,
+    pod: string,
+    container: string,
+  ): [URL, RequestInit] {
+    const encode = (s: string) => encodeURIComponent(s);
+    const resourcePath = `/api/v1/namespaces/${encode(namespace)}/pods/${encode(
+      pod,
+    )}/log`;
+    let url: URL;
+    let requestInit: RequestInit;
+    if (clusterDetails.serviceAccountToken) {
+      [url, requestInit] = this.fetchArgsFromClusterDetails(clusterDetails);
+    } else if (fs.pathExistsSync(Config.SERVICEACCOUNT_TOKEN_PATH)) {
+      [url, requestInit] = this.fetchArgsInCluster();
+    } else {
+      throw new Error(
+        `no bearer token for cluster '${clusterDetails.name}' and not running in Kubernetes`,
+      );
+    }
+
+    url.pathname = resourcePath;
+    url.searchParams.append('container', container);
+    url.searchParams.append('tailLines', '100');
+
+    return [url, requestInit];
+  }
+
+  private fetchLogs(
+    clusterDetails: ClusterDetails,
+    namespace: string,
+    pod: string,
+    container: string,
+  ): Promise<Response> {
+    const [url, requestInit] = this.getPodContianerLogEndpointWithAuth(
+      clusterDetails,
+      namespace,
+      pod,
+      container,
+    );
 
     return fetch(url, requestInit);
   }

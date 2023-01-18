@@ -24,6 +24,8 @@ import {
   Typography,
 } from '@material-ui/core';
 import {
+  ClientPodLog,
+  ClientPodLogUrl,
   ClientPodStatus,
   ClusterObjects,
 } from '@backstage/plugin-kubernetes-common';
@@ -43,6 +45,8 @@ import {
 
 import { StatusError, StatusOK } from '@backstage/core-components';
 import { PodNamesWithMetricsContext } from '../../hooks/PodNamesWithMetrics';
+import { PodNamesWithLogsContext } from '../../hooks/PodNamesWithLogs';
+import { PodNamesWithLogUrlsContext } from '../../hooks/PodNamesWithLogUrls';
 
 type ClusterSummaryProps = {
   clusterName: string;
@@ -122,44 +126,82 @@ export const Cluster = ({ clusterObjects, podsWithErrors }: ClusterProps) => {
       }
       return accum;
     }, new Map<string, ClientPodStatus>());
+  const podNameToLogs = clusterObjects.podLogs.flat().reduce((accum, next) => {
+    const name = next.name;
+    const container = next.container;
+    if (name !== undefined) {
+      let map = accum.get(name);
+
+      if (!map) {
+        map = new Map<string, ClientPodLog>();
+      }
+
+      map.set(container, next);
+
+      accum.set(name, map);
+    }
+    return accum;
+  }, new Map<string, Map<string, ClientPodLog>>());
+  const podNameToLogUrl = clusterObjects.podLogUrls
+    .flat()
+    .reduce((accum, next) => {
+      const name = next.name;
+      const container = next.container;
+      if (name !== undefined) {
+        let map = accum.get(name);
+
+        if (!map) {
+          map = new Map<string, ClientPodLogUrl>();
+        }
+
+        map.set(container, next);
+
+        accum.set(name, map);
+      }
+      return accum;
+    }, new Map<string, Map<string, ClientPodLogUrl>>());
   return (
     <ClusterContext.Provider value={clusterObjects.cluster}>
       <GroupedResponsesContext.Provider value={groupedResponses}>
-        <PodNamesWithMetricsContext.Provider value={podNameToMetrics}>
-          <PodNamesWithErrorsContext.Provider value={podsWithErrors}>
-            <Accordion TransitionProps={{ unmountOnExit: true }}>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <ClusterSummary
-                  clusterName={clusterObjects.cluster.name}
-                  totalNumberOfPods={groupedResponses.pods.length}
-                  numberOfPodsWithErrors={podsWithErrors.size}
-                />
-              </AccordionSummary>
-              <AccordionDetails>
-                <Grid container direction="column">
-                  <Grid item>
-                    <CustomResources />
-                  </Grid>
-                  <Grid item>
-                    <DeploymentsAccordions />
-                  </Grid>
-                  <Grid item>
-                    <StatefulSetsAccordions />
-                  </Grid>
-                  <Grid item>
-                    <IngressesAccordions />
-                  </Grid>
-                  <Grid item>
-                    <ServicesAccordions />
-                  </Grid>
-                  <Grid item>
-                    <CronJobsAccordions />
-                  </Grid>
-                </Grid>
-              </AccordionDetails>
-            </Accordion>
-          </PodNamesWithErrorsContext.Provider>
-        </PodNamesWithMetricsContext.Provider>
+        <PodNamesWithLogsContext.Provider value={podNameToLogs}>
+          <PodNamesWithLogUrlsContext.Provider value={podNameToLogUrl}>
+            <PodNamesWithMetricsContext.Provider value={podNameToMetrics}>
+              <PodNamesWithErrorsContext.Provider value={podsWithErrors}>
+                <Accordion TransitionProps={{ unmountOnExit: true }}>
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    <ClusterSummary
+                      clusterName={clusterObjects.cluster.name}
+                      totalNumberOfPods={groupedResponses.pods.length}
+                      numberOfPodsWithErrors={podsWithErrors.size}
+                    />
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <Grid container direction="column">
+                      <Grid item>
+                        <CustomResources />
+                      </Grid>
+                      <Grid item>
+                        <DeploymentsAccordions />
+                      </Grid>
+                      <Grid item>
+                        <StatefulSetsAccordions />
+                      </Grid>
+                      <Grid item>
+                        <IngressesAccordions />
+                      </Grid>
+                      <Grid item>
+                        <ServicesAccordions />
+                      </Grid>
+                      <Grid item>
+                        <CronJobsAccordions />
+                      </Grid>
+                    </Grid>
+                  </AccordionDetails>
+                </Accordion>
+              </PodNamesWithErrorsContext.Provider>
+            </PodNamesWithMetricsContext.Provider>
+          </PodNamesWithLogUrlsContext.Provider>
+        </PodNamesWithLogsContext.Provider>
       </GroupedResponsesContext.Provider>
     </ClusterContext.Provider>
   );

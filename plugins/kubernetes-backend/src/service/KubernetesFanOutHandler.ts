@@ -18,15 +18,17 @@ import { Entity } from '@backstage/catalog-model';
 import { Logger } from 'winston';
 import {
   ClusterDetails,
+  CustomResource,
+  CustomResourcesByEntity,
+  FetchResponseWrapper,
   KubernetesFetcher,
+  KubernetesObjectsByEntity,
   KubernetesObjectsProviderOptions,
   KubernetesServiceLocator,
   ObjectsByEntityRequest,
-  FetchResponseWrapper,
   ObjectToFetch,
-  CustomResource,
-  CustomResourcesByEntity,
-  KubernetesObjectsByEntity,
+  PodLog,
+  PodLogUrl,
   ServiceLocatorRequestContext,
 } from '../types/types';
 import { KubernetesAuthTranslator } from '../kubernetes-auth-translator/types';
@@ -36,17 +38,18 @@ import {
   ClientCurrentResourceUsage,
   ClientPodStatus,
   ClusterObjects,
+  CustomResourceMatcher,
   FetchResponse,
+  KubernetesRequestAuth,
   ObjectsByEntityResponse,
   PodFetchResponse,
-  KubernetesRequestAuth,
-  CustomResourceMatcher,
   PodStatusFetchResponse,
 } from '@backstage/plugin-kubernetes-common';
 import {
   ContainerStatus,
   CurrentResourceUsage,
   PodStatus,
+  V1Pod,
 } from '@kubernetes/client-node';
 
 /**
@@ -179,7 +182,12 @@ const toClientSafePodMetrics = (
     });
 };
 
-type responseWithMetrics = [FetchResponseWrapper, PodStatusFetchResponse[]];
+type responseWithLogsAndMetrics = [
+  FetchResponseWrapper,
+  PodStatusFetchResponse[],
+  PodLog[],
+  PodLogUrl[],
+];
 
 export class KubernetesFanOutHandler {
   private readonly logger: Logger;
@@ -273,9 +281,18 @@ export class KubernetesFanOutHandler {
             })),
             namespace,
           })
-          .then(result => this.getMetricsForPods(clusterDetailsItem, result))
+          .then(async result => {
+            const [podMetrics, logs] = await Promise.all([
+              this.getMetricsForPods(clusterDetailsItem, result),
+              this.getLogsForPods(clusterDetailsItem, result),
+            ]);
+
+            const logUrls = this.getUrlsForPodLogs(clusterDetailsItem, result);
+
+            return [result, podMetrics, logs, logUrls];
+          })
           .catch(
-            (e): Promise<responseWithMetrics> =>
+            (e): Promise<responseWithLogsAndMetrics> =>
               e.name === 'FetchError'
                 ? Promise.resolve([
                     {
@@ -285,10 +302,17 @@ export class KubernetesFanOutHandler {
                       responses: [],
                     },
                     [],
+                    [],
+                    [],
                   ])
                 : Promise.reject(e),
           )
-          .then(r => this.toClusterObjects(clusterDetailsItem, r));
+          .then(r =>
+            this.toClusterObjects(
+              clusterDetailsItem,
+              r as responseWithLogsAndMetrics,
+            ),
+          );
       }),
     ).then(this.toObjectsByEntityResponse);
   }
@@ -331,13 +355,15 @@ export class KubernetesFanOutHandler {
 
   toClusterObjects(
     clusterDetails: ClusterDetails,
-    [result, metrics]: responseWithMetrics,
+    [result, metrics, logs, podLogsUrls]: responseWithLogsAndMetrics,
   ): ClusterObjects {
     const objects: ClusterObjects = {
       cluster: {
         name: clusterDetails.name,
       },
       podMetrics: toClientSafePodMetrics(metrics),
+      podLogs: logs,
+      podLogUrls: podLogsUrls,
       resources: result.responses,
       errors: result.errors,
     };
@@ -356,9 +382,9 @@ export class KubernetesFanOutHandler {
   async getMetricsForPods(
     clusterDetails: ClusterDetails,
     result: FetchResponseWrapper,
-  ): Promise<responseWithMetrics> {
+  ): Promise<PodStatusFetchResponse[]> {
     if (clusterDetails.skipMetricsLookup) {
-      return [result, []];
+      return [];
     }
     const namespaces: Set<string> = new Set<string>(
       result.responses
@@ -369,7 +395,7 @@ export class KubernetesFanOutHandler {
     );
 
     if (namespaces.size === 0) {
-      return [result, []];
+      return [];
     }
 
     const podMetrics = await this.fetcher.fetchPodMetricsByNamespaces(
@@ -378,7 +404,37 @@ export class KubernetesFanOutHandler {
     );
 
     result.errors.push(...podMetrics.errors);
-    return [result, podMetrics.responses as PodStatusFetchResponse[]];
+    return podMetrics.responses as PodStatusFetchResponse[];
+  }
+
+  async getLogsForPods(
+    clusterDetails: ClusterDetails,
+    result: FetchResponseWrapper,
+  ): Promise<PodLog[]> {
+    const pods: V1Pod[] = result.responses
+      .filter(isPodFetchResponse)
+      .flatMap(r => r.resources);
+
+    if (pods.length === 0) {
+      return [];
+    }
+
+    return await this.fetcher.fetchPodLogs(clusterDetails, pods);
+  }
+
+  getUrlsForPodLogs(
+    clusterDetails: ClusterDetails,
+    result: FetchResponseWrapper,
+  ): PodLogUrl[] {
+    const pods: V1Pod[] = result.responses
+      .filter(isPodFetchResponse)
+      .flatMap(r => r.resources);
+
+    if (pods.length === 0) {
+      return [];
+    }
+
+    return this.fetcher.getPodLogsUrl(clusterDetails, pods);
   }
 
   private getAuthTranslator(provider: string): KubernetesAuthTranslator {

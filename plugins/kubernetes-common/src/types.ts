@@ -31,6 +31,7 @@ import {
   V1StatefulSet,
 } from '@kubernetes/client-node';
 import { Entity } from '@backstage/catalog-model';
+import { RequestInit } from 'node-fetch';
 
 /** @public */
 export interface KubernetesRequestAuth {
@@ -110,6 +111,8 @@ export interface ClusterObjects {
   cluster: ClusterAttributes;
   resources: FetchResponse[];
   podMetrics: ClientPodStatus[];
+  podLogs: ClientPodLog[];
+  podLogUrls: ClientPodLogUrl[];
   errors: KubernetesFetchError[];
 }
 
@@ -266,4 +269,21 @@ export interface ClientPodStatus {
   cpu: ClientCurrentResourceUsage;
   memory: ClientCurrentResourceUsage;
   containers: ClientContainerStatus[];
+}
+
+/** @public */
+export interface ClientPodLog {
+  name: string;
+  container: string;
+  namespace: string;
+  logs: string;
+}
+
+/** @public */
+export interface ClientPodLogUrl {
+  name: string;
+  container: string;
+  namespace: string;
+  url: string;
+  requestInit: RequestInit;
 }

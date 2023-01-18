@@ -25,6 +25,8 @@ import type {
   KubernetesRequestBody,
   ObjectsByEntityResponse,
 } from '@backstage/plugin-kubernetes-common';
+import { V1Pod } from '@kubernetes/client-node';
+import { RequestInit } from 'node-fetch';
 
 /**
  *
@@ -56,6 +58,11 @@ export interface KubernetesFetcher {
     clusterDetails: ClusterDetails,
     namespaces: Set<string>,
   ): Promise<FetchResponseWrapper>;
+  fetchPodLogs(
+    clusterDetails: ClusterDetails,
+    pods: V1Pod[],
+  ): Promise<PodLog[]>;
+  getPodLogsUrl(clusterDetails: ClusterDetails, pods: V1Pod[]): PodLogUrl[];
 }
 
 /**
@@ -65,6 +72,35 @@ export interface KubernetesFetcher {
 export interface FetchResponseWrapper {
   errors: KubernetesFetchError[];
   responses: FetchResponse[];
+}
+/**
+ *
+ * @alpha
+ */
+export interface FetchLogsWrapper {
+  pods: PodLog[];
+}
+
+/**
+ *
+ * @alpha
+ */
+export interface PodLog {
+  name: string;
+  container: string;
+  namespace: string;
+  logs: string;
+}
+/**
+ *
+ * @alpha
+ */
+export interface PodLogUrl {
+  name: string;
+  container: string;
+  namespace: string;
+  url: string;
+  requestInit: RequestInit;
 }
 
 /**

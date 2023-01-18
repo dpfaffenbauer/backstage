@@ -17,6 +17,7 @@
 import React, { useContext } from 'react';
 import { V1Pod } from '@kubernetes/client-node';
 import { PodDrawer } from './PodDrawer';
+import { PodLogDrawer } from './PodLogDrawer';
 import {
   containersReady,
   containerStatuses,
@@ -26,6 +27,8 @@ import {
 } from '../../utils/pod';
 import { Table, TableColumn } from '@backstage/core-components';
 import { PodNamesWithMetricsContext } from '../../hooks/PodNamesWithMetrics';
+import { PodNamesWithLogsContext } from '../../hooks/PodNamesWithLogs';
+import { PodNamesWithLogUrlsContext } from '../../hooks/PodNamesWithLogUrls';
 
 export const READY_COLUMNS: PodColumns = 'READY';
 export const RESOURCE_COLUMNS: PodColumns = 'RESOURCE';
@@ -69,6 +72,8 @@ const READY: TableColumn<V1Pod>[] = [
 
 export const PodsTable = ({ pods, extraColumns = [] }: PodsTablesProps) => {
   const podNamesWithMetrics = useContext(PodNamesWithMetricsContext);
+  const podNamesWithLogs = useContext(PodNamesWithLogsContext);
+  const podNamesWithLogUrls = useContext(PodNamesWithLogUrlsContext);
   const columns: TableColumn<V1Pod>[] = [...DEFAULT_COLUMNS];
 
   if (extraColumns.includes(READY_COLUMNS)) {
@@ -103,6 +108,16 @@ export const PodsTable = ({ pods, extraColumns = [] }: PodsTablesProps) => {
     ];
     columns.push(...resourceColumns);
   }
+  columns.push({
+    title: 'logs',
+    render: (pod: V1Pod) => (
+      <PodLogDrawer
+        urls={podNamesWithLogUrls.get(pod.metadata?.name ?? '')}
+        logs={podNamesWithLogs.get(pod.metadata?.name ?? '')}
+        pod={pod}
+      />
+    ),
+  });
 
   const tableStyle = {
     minWidth: '0',
