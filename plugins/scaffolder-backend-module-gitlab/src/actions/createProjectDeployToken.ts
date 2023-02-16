@@ -42,7 +42,7 @@ export const createGitlabProjectDeployToken = (options: {
     id: 'gitlab:create-project-deploy-token',
     schema: {
       input: {
-        required: ['projectId'],
+        required: ['projectId', 'repoUrl'],
         type: 'object',
         properties: {
           repoUrl: {
