@@ -25,7 +25,7 @@ import {
   RELATION_PART_OF,
   RELATION_PROVIDES_API,
 } from '@backstage/catalog-model';
-import { EmptyState } from '@backstage/core-components';
+import { EmptyState, InfoCard } from '@backstage/core-components';
 import {
   EntityApiDefinitionCard,
   EntityConsumedApisCard,
@@ -52,6 +52,7 @@ import {
   EntityHasSystemsCard,
   EntityLayout,
   EntityLinksCard,
+  EntityLabelsCard,
   EntityOrphanWarning,
   EntityProcessingErrorsPanel,
   EntitySwitch,
@@ -59,6 +60,7 @@ import {
   isComponentType,
   isKind,
   isOrphan,
+  hasLabels,
 } from '@internal/plugin-catalog-customized';
 import {
   Direction,
@@ -77,6 +79,11 @@ import {
   DynatraceTab,
   isDynatraceAvailable,
 } from '@backstage/plugin-dynatrace';
+import {
+  EntityFeedbackResponseContent,
+  EntityLikeDislikeRatingsCard,
+  LikeDislikeButtons,
+} from '@backstage/plugin-entity-feedback';
 import {
   EntityGithubActionsContent,
   EntityRecentGithubActionsRunsCard,
@@ -152,8 +159,13 @@ import { TechDocsAddons } from '@backstage/plugin-techdocs-react';
 import {
   TextSize,
   ReportIssue,
+  LightBox,
 } from '@backstage/plugin-techdocs-module-addons-contrib';
 import { EntityCostInsightsContent } from '@backstage/plugin-cost-insights';
+import {
+  isLinguistAvailable,
+  EntityLinguistCard,
+} from '@backstage/plugin-linguist';
 
 const customEntityFilterKind = ['Component', 'API', 'System'];
 
@@ -203,6 +215,7 @@ const techdocsContent = (
     <TechDocsAddons>
       <TextSize />
       <ReportIssue />
+      <LightBox />
     </TechDocsAddons>
   </EntityTechdocsContent>
 );
@@ -364,6 +377,20 @@ const overviewContent = (
       <EntityLinksCard />
     </Grid>
 
+    <EntitySwitch>
+      <EntitySwitch.Case if={hasLabels}>
+        <Grid item md={4} xs={12}>
+          <EntityLabelsCard />
+        </Grid>
+      </EntitySwitch.Case>
+    </EntitySwitch>
+
+    <Grid item md={2}>
+      <InfoCard title="Rate this entity">
+        <LikeDislikeButtons />
+      </InfoCard>
+    </Grid>
+
     {cicdCard}
 
     <EntitySwitch>
@@ -390,6 +417,14 @@ const overviewContent = (
       <EntitySwitch.Case if={isGithubPullRequestsAvailable}>
         <Grid item sm={4}>
           <EntityGithubPullRequestsOverviewCard />
+        </Grid>
+      </EntitySwitch.Case>
+    </EntitySwitch>
+
+    <EntitySwitch>
+      <EntitySwitch.Case if={isLinguistAvailable}>
+        <Grid item md={6}>
+          <EntityLinguistCard />
         </Grid>
       </EntitySwitch.Case>
     </EntitySwitch>
@@ -501,6 +536,10 @@ const serviceEntityPage = (
     >
       <DynatraceTab />
     </EntityLayout.Route>
+
+    <EntityLayout.Route path="/feedback" title="Feedback">
+      <EntityFeedbackResponseContent />
+    </EntityLayout.Route>
   </EntityLayoutWrapper>
 );
 
@@ -580,6 +619,10 @@ const websiteEntityPage = (
     <EntityLayout.Route path="/todos" title="TODOs">
       <EntityTodoContent />
     </EntityLayout.Route>
+
+    <EntityLayout.Route path="/feedback" title="Feedback">
+      <EntityFeedbackResponseContent />
+    </EntityLayout.Route>
   </EntityLayoutWrapper>
 );
 
@@ -595,6 +638,10 @@ const defaultEntityPage = (
 
     <EntityLayout.Route path="/todos" title="TODOs">
       <EntityTodoContent />
+    </EntityLayout.Route>
+
+    <EntityLayout.Route path="/feedback" title="Feedback">
+      <EntityFeedbackResponseContent />
     </EntityLayout.Route>
   </EntityLayoutWrapper>
 );
@@ -632,6 +679,11 @@ const apiPage = (
             <Grid item xs={12} md={6}>
               <EntityConsumingComponentsCard />
             </Grid>
+            <Grid item md={2}>
+              <InfoCard title="Rate this entity">
+                <LikeDislikeButtons />
+              </InfoCard>
+            </Grid>
           </Grid>
         </Grid>
       </Grid>
@@ -643,6 +695,10 @@ const apiPage = (
           <EntityApiDefinitionCard />
         </Grid>
       </Grid>
+    </EntityLayout.Route>
+
+    <EntityLayout.Route path="/feedback" title="Feedback">
+      <EntityFeedbackResponseContent />
     </EntityLayout.Route>
   </EntityLayoutWrapper>
 );
@@ -660,6 +716,9 @@ const userPage = (
             variant="gridItem"
             entityFilterKind={customEntityFilterKind}
           />
+        </Grid>
+        <Grid item xs={12}>
+          <EntityLikeDislikeRatingsCard />
         </Grid>
       </Grid>
     </EntityLayout.Route>
@@ -682,6 +741,9 @@ const groupPage = (
         </Grid>
         <Grid item xs={12}>
           <EntityMembersListCard />
+        </Grid>
+        <Grid item xs={12}>
+          <EntityLikeDislikeRatingsCard />
         </Grid>
       </Grid>
     </EntityLayout.Route>
@@ -707,6 +769,11 @@ const systemPage = (
         </Grid>
         <Grid item md={6}>
           <EntityHasResourcesCard variant="gridItem" />
+        </Grid>
+        <Grid item md={2}>
+          <InfoCard title="Rate this entity">
+            <LikeDislikeButtons />
+          </InfoCard>
         </Grid>
       </Grid>
     </EntityLayout.Route>
@@ -736,6 +803,9 @@ const systemPage = (
         unidirectional={false}
       />
     </EntityLayout.Route>
+    <EntityLayout.Route path="/feedback" title="Feedback">
+      <EntityFeedbackResponseContent />
+    </EntityLayout.Route>
   </EntityLayoutWrapper>
 );
 
@@ -753,7 +823,15 @@ const domainPage = (
         <Grid item md={6}>
           <EntityHasSystemsCard variant="gridItem" />
         </Grid>
+        <Grid item md={2}>
+          <InfoCard title="Rate this entity">
+            <LikeDislikeButtons />
+          </InfoCard>
+        </Grid>
       </Grid>
+    </EntityLayout.Route>
+    <EntityLayout.Route path="/feedback" title="Feedback">
+      <EntityFeedbackResponseContent />
     </EntityLayout.Route>
   </EntityLayoutWrapper>
 );

@@ -9,13 +9,15 @@
 import aws from 'aws-sdk';
 import { AwsS3Integration } from '@backstage/integration';
 import { AzureIntegration } from '@backstage/integration';
+import { BackendFeature } from '@backstage/backend-plugin-api';
 import { BitbucketCloudIntegration } from '@backstage/integration';
 import { BitbucketIntegration } from '@backstage/integration';
 import { BitbucketServerIntegration } from '@backstage/integration';
-import { CacheClient } from '@backstage/backend-plugin-api';
-import { CacheClientOptions } from '@backstage/backend-plugin-api';
-import { CacheClientSetOptions } from '@backstage/backend-plugin-api';
+import { CacheService as CacheClient } from '@backstage/backend-plugin-api';
+import { CacheServiceOptions as CacheClientOptions } from '@backstage/backend-plugin-api';
+import { CacheServiceSetOptions as CacheClientSetOptions } from '@backstage/backend-plugin-api';
 import { Config } from '@backstage/config';
+import { ConfigService } from '@backstage/backend-plugin-api';
 import cors from 'cors';
 import Docker from 'dockerode';
 import { Duration } from 'luxon';
@@ -26,16 +28,19 @@ import { GiteaIntegration } from '@backstage/integration';
 import { GithubCredentialsProvider } from '@backstage/integration';
 import { GithubIntegration } from '@backstage/integration';
 import { GitLabIntegration } from '@backstage/integration';
+import { IdentityService } from '@backstage/backend-plugin-api';
 import { isChildPath } from '@backstage/cli-common';
 import { Knex } from 'knex';
 import { KubeConfig } from '@kubernetes/client-node';
+import { LifecycleService } from '@backstage/backend-plugin-api';
 import { LoadConfigOptionsRemote } from '@backstage/config-loader';
 import { Logger } from 'winston';
 import { LoggerService } from '@backstage/backend-plugin-api';
 import { MergeResult } from 'isomorphic-git';
-import { CacheService as PluginCacheManager } from '@backstage/backend-plugin-api';
+import { PermissionsService } from '@backstage/backend-plugin-api';
 import { DatabaseService as PluginDatabaseManager } from '@backstage/backend-plugin-api';
 import { DiscoveryService as PluginEndpointDiscovery } from '@backstage/backend-plugin-api';
+import { PluginMetadataService } from '@backstage/backend-plugin-api';
 import { PushResult } from 'isomorphic-git';
 import { Readable } from 'stream';
 import { ReadCommitResult } from 'isomorphic-git';
@@ -47,10 +52,12 @@ import { ReadUrlOptions } from '@backstage/backend-plugin-api';
 import { ReadUrlResponse } from '@backstage/backend-plugin-api';
 import { RequestHandler } from 'express';
 import { Router } from 'express';
+import { SchedulerService } from '@backstage/backend-plugin-api';
 import { SearchOptions } from '@backstage/backend-plugin-api';
 import { SearchResponse } from '@backstage/backend-plugin-api';
 import { SearchResponseFile } from '@backstage/backend-plugin-api';
 import { Server } from 'http';
+import { ServiceRef } from '@backstage/backend-plugin-api';
 import { TokenManagerService as TokenManager } from '@backstage/backend-plugin-api';
 import { TransportStreamOptions } from 'winston-transport';
 import { UrlReaderService as UrlReader } from '@backstage/backend-plugin-api';
@@ -191,6 +198,11 @@ export type CacheManagerOptions = {
   onError?: (err: Error) => void;
 };
 
+// @public (undocumented)
+export function cacheToPluginCacheManager(
+  cache: CacheClient,
+): PluginCacheManager;
+
 // @public
 export const coloredFormat: winston.Logform.Format;
 
@@ -226,6 +238,10 @@ export class Contexts {
 export function createDatabaseClient(
   dbConfig: Config,
   overrides?: Partial<Knex.Config>,
+  deps?: {
+    lifecycle: LifecycleService;
+    pluginMetadata: PluginMetadataService;
+  },
 ): Knex<any, any[]>;
 
 // @public
@@ -246,7 +262,13 @@ export function createStatusCheckRouter(options: {
 
 // @public
 export class DatabaseManager {
-  forPlugin(pluginId: string): PluginDatabaseManager;
+  forPlugin(
+    pluginId: string,
+    deps?: {
+      lifecycle: LifecycleService;
+      pluginMetadata: PluginMetadataService;
+    },
+  ): PluginDatabaseManager;
   static fromConfig(
     config: Config,
     options?: DatabaseManagerOptions,
@@ -500,6 +522,36 @@ export type KubernetesContainerRunnerOptions = {
   timeoutMs?: number;
 };
 
+// @public (undocumented)
+export type LegacyCreateRouter<TEnv> = (deps: TEnv) => Promise<RequestHandler>;
+
+// @public
+export const legacyPlugin: (
+  name: string,
+  createRouterImport: Promise<{
+    default: LegacyCreateRouter<
+      TransformedEnv<
+        {
+          cache: CacheClient;
+          config: ConfigService;
+          database: PluginDatabaseManager;
+          discovery: PluginEndpointDiscovery;
+          logger: LoggerService;
+          permissions: PermissionsService;
+          scheduler: SchedulerService;
+          tokenManager: TokenManager;
+          reader: UrlReader;
+          identity: IdentityService;
+        },
+        {
+          logger: (log: LoggerService) => Logger;
+          cache: (cache: CacheClient) => PluginCacheManager;
+        }
+      >
+    >;
+  }>,
+) => BackendFeature;
+
 // @public
 export function loadBackendConfig(options: {
   logger: LoggerService;
@@ -514,9 +566,31 @@ export function loggerToWinstonLogger(
 ): Logger;
 
 // @public
+export function makeLegacyPlugin<
+  TEnv extends Record<string, unknown>,
+  TEnvTransforms extends {
+    [key in keyof TEnv]?: (dep: TEnv[key]) => unknown;
+  },
+>(
+  envMapping: {
+    [key in keyof TEnv]: ServiceRef<TEnv[key]>;
+  },
+  envTransforms: TEnvTransforms,
+): (
+  name: string,
+  createRouterImport: Promise<{
+    default: LegacyCreateRouter<TransformedEnv<TEnv, TEnvTransforms>>;
+  }>,
+) => BackendFeature;
+
+// @public
 export function notFoundHandler(): RequestHandler;
 
-export { PluginCacheManager };
+// @public (undocumented)
+export interface PluginCacheManager {
+  // (undocumented)
+  getClient(options?: CacheClientOptions): CacheClient;
+}
 
 export { PluginDatabaseManager };
 

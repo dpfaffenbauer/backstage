@@ -15,17 +15,17 @@
  */
 import { useImmerReducer } from 'use-immer';
 import { useEffect } from 'react';
-import { scaffolderApiRef } from '../../api';
 import {
   ScaffolderTask,
   ScaffolderTaskStatus,
   ScaffolderTaskOutput,
   LogEvent,
-} from '../../types';
+  scaffolderApiRef,
+} from '@backstage/plugin-scaffolder-react';
 import { useApi } from '@backstage/core-plugin-api';
 import { Subscription } from '@backstage/types';
 
-type Step = {
+export type Step = {
   id: string;
   status: ScaffolderTaskStatus;
   endedAt?: string;

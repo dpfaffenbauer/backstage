@@ -20,7 +20,11 @@ import {
   createServiceFactory,
   createServiceRef,
   coreServices,
+  createBackendPlugin,
 } from '@backstage/backend-plugin-api';
+import { Router } from 'express';
+import request from 'supertest';
+
 import { startTestBackend } from './TestBackend';
 
 // This bit makes sure that test backends are cleaned up properly
@@ -36,10 +40,8 @@ beforeAll(async () => {
           env.registerInit({
             deps: { lifecycle: coreServices.lifecycle },
             async init({ lifecycle }) {
-              lifecycle.addShutdownHook({
-                fn() {
-                  globalTestBackendHasBeenStopped = true;
-                },
+              lifecycle.addShutdownHook(() => {
+                globalTestBackendHasBeenStopped = true;
               });
             },
           });
@@ -102,7 +104,7 @@ describe('TestBackend', () => {
       deps: {},
       service: testRef,
       factory: async () => {
-        return async () => testFn;
+        return testFn;
       },
     });
 
@@ -141,7 +143,7 @@ describe('TestBackend', () => {
             lifecycle: coreServices.lifecycle,
           },
           async init({ lifecycle }) {
-            lifecycle.addShutdownHook({ fn: shutdownSpy });
+            lifecycle.addShutdownHook(shutdownSpy);
           },
         });
       },
@@ -155,5 +157,67 @@ describe('TestBackend', () => {
     expect(shutdownSpy).not.toHaveBeenCalled();
     await backend.stop();
     expect(shutdownSpy).toHaveBeenCalled();
+  });
+
+  it('should provide a set of default services', async () => {
+    expect.assertions(2);
+
+    const testPlugin = createBackendPlugin({
+      pluginId: 'test',
+      register(env) {
+        env.registerInit({
+          deps: {
+            cache: coreServices.cache,
+            config: coreServices.config,
+            database: coreServices.database,
+            discovery: coreServices.discovery,
+            httpRouter: coreServices.httpRouter,
+            lifecycle: coreServices.lifecycle,
+            logger: coreServices.logger,
+            permissions: coreServices.permissions,
+            pluginMetadata: coreServices.pluginMetadata,
+            rootHttpRouter: coreServices.rootHttpRouter,
+            rootLifecycle: coreServices.rootLifecycle,
+            rootLogger: coreServices.rootLogger,
+            scheduler: coreServices.scheduler,
+            tokenManager: coreServices.tokenManager,
+            urlReader: coreServices.urlReader,
+          },
+          async init(deps) {
+            expect(Object.keys(deps)).toHaveLength(15);
+            expect(Object.values(deps)).not.toContain(undefined);
+          },
+        });
+      },
+    });
+
+    await startTestBackend({
+      services: [],
+      features: [testPlugin()],
+    });
+  });
+
+  it('should allow making requests via supertest', async () => {
+    const testPlugin = createBackendPlugin({
+      pluginId: 'test',
+      register(env) {
+        env.registerInit({
+          deps: {
+            httpRouter: coreServices.httpRouter,
+          },
+          async init({ httpRouter }) {
+            const router = Router();
+            router.use('/ping-me', (_, res) => res.json({ message: 'pong' }));
+            httpRouter.use(router);
+          },
+        });
+      },
+    });
+
+    const { server } = await startTestBackend({ features: [testPlugin()] });
+
+    const res = await request(server).get('/api/test/ping-me');
+    expect(res.status).toEqual(200);
+    expect(res.body).toEqual({ message: 'pong' });
   });
 });

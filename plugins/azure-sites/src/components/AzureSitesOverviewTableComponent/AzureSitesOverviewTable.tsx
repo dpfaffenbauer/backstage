@@ -33,6 +33,7 @@ import PublicIcon from '@material-ui/icons/Public';
 import MoreVertIcon from '@material-ui/icons/MoreVert';
 import StartIcon from '@material-ui/icons/PlayArrow';
 import StopIcon from '@material-ui/icons/Stop';
+import Typography from '@material-ui/core/Typography';
 import OpenInNewIcon from '@material-ui/icons/OpenInNew';
 import { DateTime } from 'luxon';
 import { useApi } from '@backstage/core-plugin-api';
@@ -51,7 +52,8 @@ const State = ({ value }: { value: States }) => {
   };
   return (
     <Box display="flex" alignItems="center">
-      <span
+      <Typography
+        component="span"
         style={{
           display: 'block',
           width: '8px',
@@ -71,9 +73,11 @@ const Kind = ({ value }: { value: Kinds }) => {
     app: <PublicIcon />,
     functionapp: <FlashOnIcon />,
   };
+  const kindArray = value.split(',');
+  const iconValue: Kinds = kindArray.includes('app') ? 'app' : 'functionapp';
   return (
     <Box display="flex" alignItems="center">
-      <Tooltip title={value}>{iconMap[value]}</Tooltip>
+      <Tooltip title={iconValue}>{iconMap[iconValue]}</Tooltip>
     </Box>
   );
 };
@@ -160,9 +164,8 @@ const ActionButtons = ({
           </MenuItem>
         )}
         <MenuItem
-          component="a"
-          href={value.logstreamHref}
-          target="_blank"
+          component={Link}
+          to={value.logstreamHref}
           key="logStream"
           onClick={handleClose}
         >

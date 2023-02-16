@@ -14,13 +14,17 @@
  * limitations under the License.
  */
 
-import { CustomFieldValidator } from '../../extensions';
+import { CustomFieldValidator } from '@backstage/plugin-scaffolder-react';
 import { FormValidation } from '@rjsf/core';
 import { JsonObject, JsonValue } from '@backstage/types';
 import { ApiHolder } from '@backstage/core-plugin-api';
 
 function isObject(obj: unknown): obj is JsonObject {
   return typeof obj === 'object' && obj !== null && !Array.isArray(obj);
+}
+
+function isArray(obj: unknown): obj is JsonObject {
+  return typeof obj === 'object' && obj !== null && Array.isArray(obj);
 }
 
 export const createValidator = (
@@ -46,8 +50,8 @@ export const createValidator = (
       for (const [key, propData] of Object.entries(formData)) {
         const propValidation = errors[key];
 
+        const propSchemaProps = schemaProps[key];
         if (isObject(propData)) {
-          const propSchemaProps = schemaProps[key];
           if (isObject(propSchemaProps)) {
             validate(
               propSchemaProps,
@@ -55,10 +59,24 @@ export const createValidator = (
               propValidation as FormValidation,
             );
           }
+        } else if (isArray(propData)) {
+          if (isObject(propSchemaProps)) {
+            const { items } = propSchemaProps;
+            if (isObject(items)) {
+              const fieldName = items['ui:field'] as string;
+              if (fieldName && typeof validators[fieldName] === 'function') {
+                validators[fieldName]!(
+                  propData as JsonObject[],
+                  propValidation,
+                  context,
+                );
+              }
+            }
+          }
         } else {
-          const propSchema = schemaProps[key];
           const fieldName =
-            isObject(propSchema) && (propSchema['ui:field'] as string);
+            isObject(propSchemaProps) &&
+            (propSchemaProps['ui:field'] as string);
           if (fieldName && typeof validators[fieldName] === 'function') {
             validators[fieldName]!(
               propData as JsonValue,
