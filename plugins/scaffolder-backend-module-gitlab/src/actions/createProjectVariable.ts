@@ -46,6 +46,7 @@ export const createGitlabProjectVariable = (options: {
     schema: {
       input: {
         required: [
+          'repoUrl',
           'projectId',
           'key',
           'value',
