@@ -14,10 +14,16 @@
  * limitations under the License.
  */
 
-import { createTemplateAction } from '@backstage/plugin-scaffolder-backend';
+import { createTemplateAction } from '@backstage/plugin-scaffolder-node';
 import { ScmIntegrationRegistry } from '@backstage/integration';
 import { getToken } from '../util';
 
+/**
+ * Creates a `gitlab:create-project-access-token` Scaffolder action.
+ *
+ * @param options - Templating configuration.
+ * @public
+ */
 export const createGitlabProjectAccessToken = (options: {
   integrations: ScmIntegrationRegistry;
 }) => {
@@ -33,7 +39,7 @@ export const createGitlabProjectAccessToken = (options: {
     id: 'gitlab:create-project-access-token',
     schema: {
       input: {
-        required: ['projectId'],
+        required: ['projectId', 'repoUrl'],
         type: 'object',
         properties: {
           repoUrl: {

@@ -14,12 +14,18 @@
  * limitations under the License.
  */
 
-import { createTemplateAction } from '@backstage/plugin-scaffolder-backend';
+import { createTemplateAction } from '@backstage/plugin-scaffolder-node';
 import { Gitlab } from '@gitbeaker/node';
 import { ScmIntegrationRegistry } from '@backstage/integration';
 import { DeployTokenScope } from '@gitbeaker/core/dist/types/templates/ResourceDeployTokens';
 import { getToken } from '../util';
 
+/**
+ * Creates a `gitlab:create-project-deploy-token` Scaffolder action.
+ *
+ * @param options - Templating configuration.
+ * @public
+ */
 export const createGitlabProjectDeployToken = (options: {
   integrations: ScmIntegrationRegistry;
 }) => {
@@ -35,7 +41,7 @@ export const createGitlabProjectDeployToken = (options: {
     id: 'gitlab:create-project-deploy-token',
     schema: {
       input: {
-        required: ['projectId'],
+        required: ['projectId', 'repoUrl'],
         type: 'object',
         properties: {
           repoUrl: {
