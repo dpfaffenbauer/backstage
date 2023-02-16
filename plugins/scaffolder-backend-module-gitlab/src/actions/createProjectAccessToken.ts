@@ -19,6 +19,12 @@ import { ScmIntegrationRegistry } from '@backstage/integration';
 import { InputError } from '@backstage/errors';
 import { parseRepoHost } from '../util';
 
+/**
+ * Creates a `gitlab:create-project-access-token` Scaffolder action.
+ *
+ * @param options - Templating configuration.
+ * @public
+ */
 export const createGitlabProjectAccessToken = (options: {
   integrations: ScmIntegrationRegistry;
 }) => {
