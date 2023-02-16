@@ -21,6 +21,12 @@ import { InputError } from '@backstage/errors';
 import { DeployTokenScope } from '@gitbeaker/core/dist/types/templates/ResourceDeployTokens';
 import { parseRepoHost } from '../util';
 
+/**
+ * Creates a `gitlab:create-project-deploy-token` Scaffolder action.
+ *
+ * @param options - Templating configuration.
+ * @public
+ */
 export const createGitlabProjectDeployToken = (options: {
   integrations: ScmIntegrationRegistry;
 }) => {
