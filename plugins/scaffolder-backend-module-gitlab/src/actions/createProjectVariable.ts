@@ -20,6 +20,12 @@ import { InputError } from '@backstage/errors';
 import { parseRepoHost } from '../util';
 import { Gitlab } from '@gitbeaker/node';
 
+/**
+ * Creates a `gitlab:create-project-variable` Scaffolder action.
+ *
+ * @param options - Templating configuration.
+ * @public
+ */
 export const createGitlabProjectVariable = (options: {
   integrations: ScmIntegrationRegistry;
 }) => {
