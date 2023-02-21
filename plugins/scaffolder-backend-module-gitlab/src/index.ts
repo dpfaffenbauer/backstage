@@ -13,12 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 /**
- * A module for the scaffolder backend that lets you create gitlab project access tokens or deploy tokens
+ * A module for the scaffolder backend that lets you interact with gitlab
  *
  * @packageDocumentation
  */
 
-export * from './actions/createProjectDeployToken';
+export type { CommonGitlabConfig } from './commonGitlabConfig';
+
+export * from './actions/createEnsureGroupExistsAction';
 export * from './actions/createProjectAccessToken';
+export * from './actions/createProjectDeployToken';
 export * from './actions/createProjectVariable';

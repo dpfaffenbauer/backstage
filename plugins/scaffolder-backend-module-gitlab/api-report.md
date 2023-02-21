@@ -7,42 +7,57 @@ import { ScmIntegrationRegistry } from '@backstage/integration';
 import { TemplateAction } from '@backstage/plugin-scaffolder-node';
 
 // @public
+export type CommonGitlabConfig = {
+  token?: string | null | undefined;
+  repoUrl: string;
+};
+
+// @public
+export const createEnsureGroupExistsAction: (options: {
+  integrations: ScmIntegrationRegistry;
+}) => TemplateAction<
+  CommonGitlabConfig & {
+    path: string[];
+  }
+>;
+
+// @public
 export const createGitlabProjectAccessToken: (options: {
   integrations: ScmIntegrationRegistry;
-}) => TemplateAction<{
-  repoUrl: string;
-  projectId: string | number;
-  name: string;
-  accessLevel: number;
-  scopes: string[];
-  token?: string | undefined;
-}>;
+}) => TemplateAction<
+  CommonGitlabConfig & {
+    projectId: string | number;
+    name: string;
+    accessLevel: number;
+    scopes: string[];
+  }
+>;
 
 // @public
 export const createGitlabProjectDeployToken: (options: {
   integrations: ScmIntegrationRegistry;
-}) => TemplateAction<{
-  repoUrl: string;
-  projectId: string | number;
-  name: string;
-  username: string;
-  scopes: string[];
-  token?: string | undefined;
-}>;
+}) => TemplateAction<
+  CommonGitlabConfig & {
+    projectId: string | number;
+    name: string;
+    username: string;
+    scopes: string[];
+  }
+>;
 
 // @public
 export const createGitlabProjectVariable: (options: {
   integrations: ScmIntegrationRegistry;
-}) => TemplateAction<{
-  repoUrl: string;
-  projectId: string | number;
-  key: string;
-  value: string;
-  variableType: string;
-  variableProtected: boolean;
-  masked: boolean;
-  raw: boolean;
-  environmentScope: string;
-  token?: string | undefined;
-}>;
+}) => TemplateAction<
+  CommonGitlabConfig & {
+    projectId: string | number;
+    key: string;
+    value: string;
+    variableType: string;
+    variableProtected: boolean;
+    masked: boolean;
+    raw: boolean;
+    environmentScope: string;
+  }
+>;
 ```

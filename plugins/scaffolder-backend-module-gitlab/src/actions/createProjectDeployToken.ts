@@ -18,6 +18,10 @@ import { createTemplateAction } from '@backstage/plugin-scaffolder-node';
 import { Gitlab } from '@gitbeaker/node';
 import { ScmIntegrationRegistry } from '@backstage/integration';
 import { DeployTokenScope } from '@gitbeaker/core/dist/types/templates/ResourceDeployTokens';
+import {
+  addCommonGitlabInputProperties,
+  CommonGitlabConfig,
+} from '../commonGitlabConfig';
 import { getToken } from '../util';
 
 /**
@@ -30,24 +34,20 @@ export const createGitlabProjectDeployToken = (options: {
   integrations: ScmIntegrationRegistry;
 }) => {
   const { integrations } = options;
-  return createTemplateAction<{
-    repoUrl: string;
-    projectId: string | number;
-    name: string;
-    username: string;
-    scopes: string[];
-    token?: string;
-  }>({
+  return createTemplateAction<
+    CommonGitlabConfig & {
+      projectId: string | number;
+      name: string;
+      username: string;
+      scopes: string[];
+    }
+  >({
     id: 'gitlab:create-project-deploy-token',
     schema: {
-      input: {
-        required: ['projectId', 'repoUrl'],
+      input: addCommonGitlabInputProperties({
+        required: ['projectId'],
         type: 'object',
         properties: {
-          repoUrl: {
-            title: 'Repository Location',
-            type: 'string',
-          },
           projectId: {
             title: 'Project ID',
             type: 'string | number',
@@ -64,13 +64,8 @@ export const createGitlabProjectDeployToken = (options: {
             title: 'Scopes',
             type: 'array',
           },
-          token: {
-            title: 'Authentication Token',
-            type: 'string',
-            description: 'The token to use for authorization to GitLab',
-          },
         },
-      },
+      }),
       output: {
         type: 'object',
         properties: {
@@ -87,12 +82,8 @@ export const createGitlabProjectDeployToken = (options: {
     },
     async handler(ctx) {
       ctx.logger.info(`Creating Token for Project "${ctx.input.projectId}"`);
-      const { repoUrl, projectId, name, username, scopes } = ctx.input;
-      const { token, integrationConfig } = getToken(
-        repoUrl,
-        ctx.input.token,
-        integrations,
-      );
+      const { projectId, name, username, scopes } = ctx.input;
+      const { token, integrationConfig } = getToken(ctx.input, integrations);
 
       const api = new Gitlab({
         host: integrationConfig.config.baseUrl,

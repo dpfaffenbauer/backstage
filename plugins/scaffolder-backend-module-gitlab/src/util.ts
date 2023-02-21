@@ -19,6 +19,7 @@ import {
   GitLabIntegration,
   ScmIntegrationRegistry,
 } from '@backstage/integration';
+import { CommonGitlabConfig } from './commonGitlabConfig';
 
 export const parseRepoHost = (repoUrl: string): string => {
   let parsed;
@@ -33,11 +34,10 @@ export const parseRepoHost = (repoUrl: string): string => {
 };
 
 export const getToken = (
-  repoUrl: string,
-  inputToken: string | null | undefined,
+  config: CommonGitlabConfig,
   integrations: ScmIntegrationRegistry,
 ): { token: string; integrationConfig: GitLabIntegration } => {
-  const host = parseRepoHost(repoUrl);
+  const host = parseRepoHost(config.repoUrl);
   const integrationConfig = integrations.gitlab.byHost(host);
 
   if (!integrationConfig) {
@@ -46,8 +46,8 @@ export const getToken = (
     );
   }
 
-  const token = inputToken || integrationConfig.config.token!;
-  const tokenType = inputToken ? 'oauthToken' : 'token';
+  const token = config.token || integrationConfig.config.token!;
+  const tokenType = config.token ? 'oauthToken' : 'token';
 
   if (tokenType === 'oauthToken') {
     throw new InputError(`OAuth Token is currently not supported`);

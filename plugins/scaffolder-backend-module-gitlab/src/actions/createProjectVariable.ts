@@ -16,8 +16,12 @@
 
 import { createTemplateAction } from '@backstage/plugin-scaffolder-node';
 import { ScmIntegrationRegistry } from '@backstage/integration';
-import { getToken } from '../util';
 import { Gitlab } from '@gitbeaker/node';
+import { getToken } from '../util';
+import {
+  addCommonGitlabInputProperties,
+  CommonGitlabConfig,
+} from '../commonGitlabConfig';
 
 /**
  * Creates a `gitlab:create-project-variable` Scaffolder action.
@@ -29,23 +33,22 @@ export const createGitlabProjectVariable = (options: {
   integrations: ScmIntegrationRegistry;
 }) => {
   const { integrations } = options;
-  return createTemplateAction<{
-    repoUrl: string;
-    projectId: string | number;
-    key: string;
-    value: string;
-    variableType: string;
-    variableProtected: boolean;
-    masked: boolean;
-    raw: boolean;
-    environmentScope: string;
-    token?: string;
-  }>({
+  return createTemplateAction<
+    CommonGitlabConfig & {
+      projectId: string | number;
+      key: string;
+      value: string;
+      variableType: string;
+      variableProtected: boolean;
+      masked: boolean;
+      raw: boolean;
+      environmentScope: string;
+    }
+  >({
     id: 'gitlab:create-project-variable',
     schema: {
-      input: {
+      input: addCommonGitlabInputProperties({
         required: [
-          'repoUrl',
           'projectId',
           'key',
           'value',
@@ -57,10 +60,6 @@ export const createGitlabProjectVariable = (options: {
         ],
         type: 'object',
         properties: {
-          repoUrl: {
-            title: 'Repository Location',
-            type: 'string',
-          },
           key: {
             title:
               'The key of a variable; must have no more than 255 characters; only A-Z, a-z, 0-9, and _ are allowed',
@@ -90,17 +89,11 @@ export const createGitlabProjectVariable = (options: {
             title: 'The environment_scope of the variable. Default: *',
             type: 'string',
           },
-          token: {
-            title: 'Authentication Token',
-            type: 'string',
-            description: 'The token to use for authorization to GitLab',
-          },
         },
-      },
+      }),
     },
     async handler(ctx) {
       const {
-        repoUrl,
         projectId,
         key,
         value,
@@ -110,11 +103,7 @@ export const createGitlabProjectVariable = (options: {
         raw,
         environmentScope,
       } = ctx.input;
-      const { token, integrationConfig } = getToken(
-        repoUrl,
-        ctx.input.token,
-        integrations,
-      );
+      const { token, integrationConfig } = getToken(ctx.input, integrations);
 
       const api = new Gitlab({
         host: integrationConfig.config.baseUrl,

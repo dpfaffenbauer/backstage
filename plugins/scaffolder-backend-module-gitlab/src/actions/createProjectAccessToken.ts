@@ -16,6 +16,10 @@
 
 import { createTemplateAction } from '@backstage/plugin-scaffolder-node';
 import { ScmIntegrationRegistry } from '@backstage/integration';
+import {
+  addCommonGitlabInputProperties,
+  CommonGitlabConfig,
+} from '../commonGitlabConfig';
 import { getToken } from '../util';
 
 /**
@@ -28,24 +32,20 @@ export const createGitlabProjectAccessToken = (options: {
   integrations: ScmIntegrationRegistry;
 }) => {
   const { integrations } = options;
-  return createTemplateAction<{
-    repoUrl: string;
-    projectId: string | number;
-    name: string;
-    accessLevel: number;
-    scopes: string[];
-    token?: string;
-  }>({
+  return createTemplateAction<
+    CommonGitlabConfig & {
+      projectId: string | number;
+      name: string;
+      accessLevel: number;
+      scopes: string[];
+    }
+  >({
     id: 'gitlab:create-project-access-token',
     schema: {
-      input: {
-        required: ['projectId', 'repoUrl'],
+      input: addCommonGitlabInputProperties({
+        required: ['projectId'],
         type: 'object',
         properties: {
-          repoUrl: {
-            title: 'Repository Location',
-            type: 'string',
-          },
           projectId: {
             title: 'Project ID',
             type: 'string | number',
@@ -62,13 +62,8 @@ export const createGitlabProjectAccessToken = (options: {
             title: 'Scopes',
             type: 'array',
           },
-          token: {
-            title: 'Authentication Token',
-            type: 'string',
-            description: 'The token to use for authorization to GitLab',
-          },
         },
-      },
+      }),
       output: {
         type: 'object',
         properties: {
@@ -81,12 +76,8 @@ export const createGitlabProjectAccessToken = (options: {
     },
     async handler(ctx) {
       ctx.logger.info(`Creating Token for Project "${ctx.input.projectId}"`);
-      const { repoUrl, projectId, name, accessLevel, scopes } = ctx.input;
-      const { token, integrationConfig } = getToken(
-        repoUrl,
-        ctx.input.token,
-        integrations,
-      );
+      const { projectId, name, accessLevel, scopes } = ctx.input;
+      const { token, integrationConfig } = getToken(ctx.input, integrations);
 
       const response = await fetch(
         `${integrationConfig.config.baseUrl}/api/v4/projects/${projectId}/access_tokens`,
